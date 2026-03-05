@@ -1413,6 +1413,13 @@ function AdminPage({ tips, setTips, notify, userId, allUsers }) {
     notify(`Result marked: ${status}`);
   };
 
+  const deleteTip = async (tipId) => {
+    if (!window.confirm("Delete this tip permanently?")) return;
+    await supabase.from('tips').delete().eq('id', tipId);
+    setTips(prev => prev.filter(t => t.id !== tipId));
+    notify("Tip deleted");
+  };
+
   const togglePremium = async (tipId, current) => {
     await supabase.from('tips').update({ is_premium: !current }).eq('id', tipId);
     setTips(prev => prev.map(t => t.id === tipId ? {...t, is_premium: !current} : t));
@@ -1482,6 +1489,7 @@ function AdminPage({ tips, setTips, notify, userId, allUsers }) {
                   <div className="result-toggle">
                     <button className={`result-btn won ${tip.result_status==="won"?"active":""}`} onClick={()=>updateResult(tip.id,"won")}>W</button>
                     <button className={`result-btn lost ${tip.result_status==="lost"?"active":""}`} onClick={()=>updateResult(tip.id,"lost")}>L</button>
+                    <button className="result-btn" style={{borderColor:"#6b7590",color:"#6b7590"}} onClick={()=>deleteTip(tip.id)}>🗑</button>
                   </div>
                 </div>
               </div>
@@ -1604,7 +1612,7 @@ export default function BetSenseApp() {
     if (!user) return;
 
     supabase.from('tips').select('*').order('match_date', { ascending: false })
-      .then(({ data }) => { if (data && data.length > 0) setTips(data); });
+      .then(({ data }) => { if (data) setTips(data || []); });
 
     if (user.role === 'admin') {
       supabase.from('users').select('*').order('created_at', { ascending: false })
