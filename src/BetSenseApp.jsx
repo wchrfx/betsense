@@ -1238,10 +1238,13 @@ function CreateTipModal({ onClose, onSave, notify, userId }) {
   const set = (k, v) => setForm(f => ({...f, [k]: v}));
 
   const handleSave = async () => {
-    if (!form.home_team || !form.away_team || !form.league || !form.prediction || !form.odds_reference || !form.match_date) {
-      notify("Fill in all required fields", "error");
-      return;
-    }
+    console.log("Form data:", form);
+    if (!form.home_team) { notify("Home team is required", "error"); return; }
+    if (!form.away_team) { notify("Away team is required", "error"); return; }
+    if (!form.league) { notify("League is required", "error"); return; }
+    if (!form.prediction) { notify("Prediction is required", "error"); return; }
+    if (!form.odds_reference) { notify("Odds are required", "error"); return; }
+    if (!form.match_date) { notify("Match date is required", "error"); return; }
 
     const newTip = {
       sport: form.sport,
