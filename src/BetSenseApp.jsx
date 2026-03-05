@@ -1576,7 +1576,7 @@ export default function BetSenseApp() {
   const [page, setPage] = useState("dashboard");
   const [tips, setTips] = useState(mockTips);
   const [allUsers, setAllUsers] = useState([]);
-  const [stats] = useState(mockStats);
+  const [stats, setStats] = useState(mockStats);
   const [notification, setNotification] = useState(null);
 
   const notify = useCallback((msg, type = "success") => {
@@ -1607,12 +1607,48 @@ export default function BetSenseApp() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // ── Load tips + users when logged in ──
+  // ── Load tips + users + stats when logged in ──
   useEffect(() => {
     if (!user) return;
 
+    // Load tips
     supabase.from('tips').select('*').order('match_date', { ascending: false })
       .then(({ data }) => { if (data) setTips(data || []); });
+
+    // Load real stats
+    async function loadStats() {
+      try {
+        const [overall, football, basketball, lastTen] = await Promise.all([
+          supabase.rpc('get_performance_stats'),
+          supabase.rpc('get_performance_stats', { p_sport: 'football' }),
+          supabase.rpc('get_performance_stats', { p_sport: 'basketball' }),
+          supabase.rpc('get_last_n_performance', { n: 10 }),
+        ]);
+
+        const o = overall.data?.[0];
+        const f = football.data?.[0];
+        const b = basketball.data?.[0];
+        const l = lastTen.data || [];
+
+        if (o) {
+          setStats({
+            total_tips: o.total_tips || 0,
+            won_tips: o.won_tips || 0,
+            lost_tips: o.lost_tips || 0,
+            win_rate: o.win_rate || 0,
+            roi_percentage: o.roi || 0,
+            avg_odds: o.avg_odds || 0,
+            football_win_rate: f?.win_rate || 0,
+            basketball_win_rate: b?.win_rate || 0,
+            last_10: l.map(t => t.result),
+          });
+        }
+      } catch (err) {
+        console.error("Stats error:", err);
+      }
+    }
+
+    loadStats();
 
     if (user.role === 'admin') {
       supabase.from('users').select('*').order('created_at', { ascending: false })
