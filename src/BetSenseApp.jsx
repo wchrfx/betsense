@@ -1574,7 +1574,7 @@ export default function BetSenseApp() {
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [page, setPage] = useState("dashboard");
-  const [tips, setTips] = useState(mockTips);
+  const [tips, setTips] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [stats, setStats] = useState(mockStats);
   const [notification, setNotification] = useState(null);
