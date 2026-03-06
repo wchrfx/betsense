@@ -957,7 +957,21 @@ function CreateTipModal({ onClose, onSave, notify, userId }) {
     console.log('INSERTING:', JSON.stringify(newTip));
 const sessionCheck = await supabase.auth.getSession();
 console.log('SESSION ID:', sessionCheck.data.session?.user?.id);
-const { data, error } = await supabase.from('tips').insert(newTip).select();
+const { data, error } = await fetch("https://gyamnnubkxlddbctvbxk.supabase.co/rest/v1/tips", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "apikey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5YW1ubnVia3hsZGRiY3R2YnhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2Njk1NjYsImV4cCI6MjA4ODI0NTU2Nn0.SCiVnDTAkgkuF6cYe8tG9FzeLuYdWfGj0D38gyKSnac",
+    "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5YW1ubnVia3hsZGRiY3R2YnhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2Njk1NjYsImV4cCI6MjA4ODI0NTU2Nn0.SCiVnDTAkgkuF6cYe8tG9FzeLuYdWfGj0D38gyKSnac",
+    "Prefer": "return=representation"
+  },
+  body: JSON.stringify(newTip)
+}).then(async r => {
+  const json = await r.json();
+  console.log('FETCH INSERT RESULT:', JSON.stringify(json));
+  if (!r.ok) return { data: null, error: json };
+  return { data: json[0], error: null };
+});
 console.log('RESULT:', JSON.stringify(data), JSON.stringify(error));
 console.log('RESULT:', JSON.stringify(data), JSON.stringify(error));
     setSaving(false);
@@ -967,7 +981,7 @@ console.log('RESULT:', JSON.stringify(data), JSON.stringify(error));
       return;
     }
 
-    onSave(data?.[0]);
+    onSave(data);
     notify("Tip created successfully ✓");
     onClose();
   };
