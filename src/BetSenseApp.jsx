@@ -957,7 +957,8 @@ function CreateTipModal({ onClose, onSave, notify, userId }) {
     console.log('INSERTING:', JSON.stringify(newTip));
 const sessionCheck = await supabase.auth.getSession();
 console.log('SESSION ID:', sessionCheck.data.session?.user?.id);
-const { data, error } = await supabase.from('tips').insert(newTip).select().single();
+const { data, error } = await supabase.from('tips').insert(newTip).select();
+console.log('RESULT:', JSON.stringify(data), JSON.stringify(error));
 console.log('RESULT:', JSON.stringify(data), JSON.stringify(error));
     setSaving(false);
 
@@ -966,7 +967,7 @@ console.log('RESULT:', JSON.stringify(data), JSON.stringify(error));
       return;
     }
 
-    onSave(data);
+    onSave(data?.[0]);
     notify("Tip created successfully ✓");
     onClose();
   };
