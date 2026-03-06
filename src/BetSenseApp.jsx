@@ -454,7 +454,7 @@ const styles = `
     z-index: 100; padding: 8px 0 20px;
   }
   .mobile-nav-inner {
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-template-columns: repeat(4, 1fr);
   }
   .mobile-nav-item {
     display: flex; flex-direction: column; align-items: center;
@@ -1325,11 +1325,14 @@ function SubscriptionPage({ user }) {
   return (
     <div className="sub-page">
       <div className="page-header">
-        <div>
-          <h1 className="page-title">Upgrade to Premium</h1>
-          <p className="page-subtitle">Unlock all tips, full analysis & performance tracking</p>
-        </div>
-      </div>
+  <div>
+    <h1 className="page-title">Upgrade to Premium</h1>
+    <p className="page-subtitle">Unlock all tips, full analysis & performance tracking</p>
+  </div>
+  <button className="btn-secondary" onClick={() => window.history.back()} style={{fontSize:13,padding:"8px 16px"}}>
+    ← Back
+  </button>
+</div>
       <div className="plans-grid">
         {Object.entries(plans).map(([key, plan]) => (
           <div key={key} className={`plan-card ${selected === key ? "selected" : ""} ${key === "monthly" ? "popular" : ""}`}
@@ -2009,12 +2012,11 @@ export default function BetSenseApp() {
         {/* Mobile Bottom Nav */}
         <nav className="mobile-nav">
           <div className="mobile-nav-inner">
-            {[
+           {[
               { id:"dashboard", icon:"📊", label:"Picks" },
               { id:"history", icon:"📋", label:"Results" },
               { id:"subscription", icon:"⭐", label:"Premium" },
-              ...(isAdmin ? [{ id:"admin", icon:"🛡️", label:"Admin" }] : []),
-              { id:"account", icon:"👤", label:"Account" },
+              ...(isAdmin ? [{ id:"admin", icon:"🛡️", label:"Admin" }] : [{ id:"account", icon:"👤", label:"Account" }]),
             ].map(item => (
               <button
                 key={item.id}
