@@ -439,13 +439,36 @@ const styles = `
 
   @media (max-width: 768px) {
     .sidebar { display: none; }
-    .main { margin-left: 0; padding: 20px 16px; }
+    .main { margin-left: 0; padding: 20px 16px 100px; }
     .plans-grid { grid-template-columns: 1fr; }
     .form-row { grid-template-columns: 1fr; }
     .tips-table .table-header,
     .tips-table .table-row { grid-template-columns: 1fr 80px 80px; }
     .tips-table .hide-mobile { display: none; }
+    .mobile-nav { display: flex; }
   }
+
+  .mobile-nav {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    z-index: 100; padding: 8px 0 20px;
+  }
+  .mobile-nav-inner {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+  }
+  .mobile-nav-item {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px; padding: 8px 4px; cursor: pointer;
+    transition: all 0.15s; border: none; background: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .mobile-nav-item .m-icon { font-size: 20px; line-height: 1; }
+  .mobile-nav-item .m-label {
+    font-size: 10px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .mobile-nav-item.active .m-label { color: var(--accent); }
+  .mobile-nav-item.active .m-icon { filter: drop-shadow(0 0 6px rgba(0,229,160,0.6)); }
 
   .notification-banner {
     position: fixed; top: 20px; right: 20px; z-index: 999;
@@ -1983,6 +2006,27 @@ export default function BetSenseApp() {
             <AdminPage tips={tips} setTips={setTips} notify={notify} userId={user.id} allUsers={allUsers} />
           )}
         </main>
+        {/* Mobile Bottom Nav */}
+        <nav className="mobile-nav">
+          <div className="mobile-nav-inner">
+            {[
+              { id:"dashboard", icon:"📊", label:"Picks" },
+              { id:"history", icon:"📋", label:"Results" },
+              { id:"subscription", icon:"⭐", label:"Premium" },
+              ...(isAdmin ? [{ id:"admin", icon:"🛡️", label:"Admin" }] : []),
+              { id:"account", icon:"👤", label:"Account" },
+            ].map(item => (
+              <button
+                key={item.id}
+                className={`mobile-nav-item ${page === item.id ? "active" : ""}`}
+                onClick={() => item.id === "account" ? handleLogout() : setPage(item.id)}
+              >
+                <span className="m-icon">{item.icon}</span>
+                <span className="m-label">{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
       </div>
 
       {notification && (
