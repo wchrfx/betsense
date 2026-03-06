@@ -1202,7 +1202,7 @@ function DashboardPage({ user, tips, stats, onSubscribeClick }) {
   const [sport, setSport] = useState("all");
   const [showPremium, setShowPremium] = useState(true);
   const isPremium = user?.subscription_status !== "free";
-  const filtered = tips.filter(t => sport === "all" || t.sport === sport);
+  const filtered = tips.filter(t => (sport === "all" || t.sport === sport) && t.result_status === "pending");
 
   return (
     <div>
@@ -1533,6 +1533,105 @@ function CreateTipModal({ onClose, onSave, notify, userId }) {
 // ─────────────────────────────────────────────────────────────
 // ADMIN PAGE
 // ─────────────────────────────────────────────────────────────
+function HistoryPage({ tips }) {
+  const [sport, setSport] = useState("all");
+
+  const finished = tips
+    .filter(t => t.result_status !== "pending")
+    .filter(t => sport === "all" || t.sport === sport)
+    .sort((a, b) => new Date(b.match_date) - new Date(a.match_date));
+
+  const won = finished.filter(t => t.result_status === "won").length;
+  const lost = finished.filter(t => t.result_status === "lost").length;
+  const winRate = finished.length > 0 ? Math.round((won / finished.length) * 100) : 0;
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Results History</h1>
+          <p className="page-subtitle">All graded tips — wins and losses, nothing hidden</p>
+        </div>
+      </div>
+
+      {/* Summary bar */}
+      <div className="stats-grid" style={{marginBottom:24}}>
+        <div className="stat-card">
+          <div className="stat-label">Total Graded</div>
+          <div className="stat-value blue">{finished.length}</div>
+          <div className="stat-sub">{won}W / {lost}L</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Win Rate</div>
+          <div className="stat-value green">{winRate}%</div>
+          <div className="stat-sub">For current filter</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Wins</div>
+          <div className="stat-value green">{won}</div>
+          <div className="stat-sub">Successful tips</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Losses</div>
+          <div className="stat-value" style={{color:"var(--danger)"}}>{lost}</div>
+          <div className="stat-sub">Unsuccessful tips</div>
+        </div>
+      </div>
+
+      {/* Sport filter */}
+      <div className="filter-bar">
+        {["all","football","basketball"].map(s => (
+          <button key={s} className={`filter-btn ${sport === s ? "active" : ""}`} onClick={() => setSport(s)}>
+            {s === "all" ? "All Sports" : s === "football" ? "⚽ Football" : "🏀 Basketball"}
+          </button>
+        ))}
+      </div>
+
+      {/* Results table */}
+      {finished.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">📋</div>
+          <div className="empty-title">No results yet</div>
+          <div className="empty-sub">Graded tips will appear here</div>
+        </div>
+      ) : (
+        <div className="admin-table" style={{borderRadius:14}}>
+          <div className="table-header" style={{gridTemplateColumns:"1fr 110px 100px 80px 90px"}}>
+            <span>Match</span>
+            <span>Prediction</span>
+            <span>Market</span>
+            <span>Odds</span>
+            <span>Result</span>
+          </div>
+          {finished.map(tip => (
+            <div key={tip.id} className="table-row" style={{gridTemplateColumns:"1fr 110px 100px 80px 90px"}}>
+              <div className="table-cell">
+                <div style={{fontWeight:600,fontSize:13}}>{tip.match_title}</div>
+                <div style={{fontSize:11,color:"var(--muted)",marginTop:2}}>
+                  {tip.sport === "football" ? "⚽" : "🏀"} {tip.league} · {formatDate(tip.match_date)}
+                </div>
+              </div>
+              <div className="table-cell" style={{fontSize:13,color:"var(--accent)",fontWeight:600}}>
+                {tip.prediction}
+              </div>
+              <div className="table-cell">
+                <span className="badge market" style={{fontSize:11}}>{tip.market_type}</span>
+              </div>
+              <div className="table-cell" style={{fontSize:13,color:"var(--gold)",fontWeight:700}}>
+                {Number(tip.odds_reference).toFixed(2)}
+              </div>
+              <div className="table-cell">
+                <span className={`badge result-${tip.result_status}`}>
+                  {tip.result_status === "won" ? "✓ Won" : "✗ Lost"}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 function AdminPage({ tips, setTips, notify, userId, allUsers }) {
   const [tab, setTab] = useState("tips");
   const [showCreate, setShowCreate] = useState(false);
@@ -1838,6 +1937,7 @@ export default function BetSenseApp() {
   const navItems = [
     { id:"dashboard", icon:"📊", label:"Dashboard" },
     { id:"subscription", icon:"⭐", label:"Subscription" },
+{ id:"history", icon:"📋", label:"Results" },
     ...(isAdmin ? [{ id:"admin", icon:"🛡️", label:"Admin Panel" }] : []),
   ];
 
@@ -1878,6 +1978,7 @@ export default function BetSenseApp() {
             <DashboardPage user={user} tips={tips} stats={stats} onSubscribeClick={() => setPage("subscription")} />
           )}
           {page === "subscription" && <SubscriptionPage user={user} />}
+{page === "history" && <HistoryPage tips={tips} />}
           {page === "admin" && isAdmin && (
             <AdminPage tips={tips} setTips={setTips} notify={notify} userId={user.id} allUsers={allUsers} />
           )}
