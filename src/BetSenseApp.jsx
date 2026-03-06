@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./lib/supabase";
 
@@ -953,7 +954,11 @@ function CreateTipModal({ onClose, onSave, notify, userId }) {
       created_by: userId,
     };
 
-    const { data, error } = await supabase.from('tips').insert(newTip).select().single();
+    console.log('INSERTING:', JSON.stringify(newTip));
+const sessionCheck = await supabase.auth.getSession();
+console.log('SESSION ID:', sessionCheck.data.session?.user?.id);
+const { data, error } = await supabase.from('tips').insert(newTip).select().single();
+console.log('RESULT:', JSON.stringify(data), JSON.stringify(error));
     setSaving(false);
 
     if (error) {
