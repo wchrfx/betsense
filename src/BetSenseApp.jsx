@@ -1329,7 +1329,7 @@ function SubscriptionPage({ user, onBack }) {
     <h1 className="page-title">Upgrade to Premium</h1>
     <p className="page-subtitle">Unlock all tips, full analysis & performance tracking</p>
   </div>
-  <button className="btn-secondary" onClick={() => setPage("dashboard")} style={{fontSize:13,padding:"8px 16px"}}>
+  <button className="btn-secondary" onClick={onBack} style={{fontSize:13,padding:"8px 16px"}}>
     ← Back
   </button>
 </div>
@@ -1392,7 +1392,26 @@ function SubscriptionPage({ user, onBack }) {
 // CREATE TIP MODAL
 // ─────────────────────────────────────────────────────────────
 function CreateTipModal({ onClose, onSave, notify, userId }) {
-const generateWithAI = async () => {
+  const [form, setForm] = useState({
+    sport: "football",
+    market_type: "1X2",
+    home_team: "",
+    away_team: "",
+    league: "",
+    match_date: "",
+    prediction: "",
+    odds_reference: "",
+    confidence_percentage: 65,
+    value_rating: 3,
+    public_bias: "medium",
+    reasoning_text: "",
+    analyst_note: "",
+    is_premium: false,
+  });
+  const [saving, setSaving] = useState(false);
+  const set = (k, v) => setForm(f => ({...f, [k]: v}));
+
+  const generateWithAI = async () => {
     if (!form.home_team || !form.away_team || !form.league) {
       notify("Enter Home Team, Away Team and League first", "error"); return;
     }
