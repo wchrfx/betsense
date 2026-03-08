@@ -1274,7 +1274,7 @@ function DashboardPage({ user, tips, stats, onSubscribeClick }) {
 // ⚠️ CHANGE THIS TO YOUR REAL MOBILE MONEY NUMBER
 const PAYMENT_NUMBER = "0764 008 486";
 
-function SubscriptionPage({ user }) {
+function SubscriptionPage({ user, onBack }) {
   const [selected, setSelected] = useState("monthly");
   const [phone, setPhone] = useState("");
   const [txRef, setTxRef] = useState("");
@@ -1329,7 +1329,7 @@ function SubscriptionPage({ user }) {
     <h1 className="page-title">Upgrade to Premium</h1>
     <p className="page-subtitle">Unlock all tips, full analysis & performance tracking</p>
   </div>
-  <button className="btn-secondary" onClick={() => window.history.back()} style={{fontSize:13,padding:"8px 16px"}}>
+  <button className="btn-secondary" onClick={() => setPage("dashboard")} style={{fontSize:13,padding:"8px 16px"}}>
     ← Back
   </button>
 </div>
@@ -1392,15 +1392,58 @@ function SubscriptionPage({ user }) {
 // CREATE TIP MODAL
 // ─────────────────────────────────────────────────────────────
 function CreateTipModal({ onClose, onSave, notify, userId }) {
-  const [form, setForm] = useState({
-    sport: "football", home_team: "", away_team: "",
-    league: "", market_type: "1X2", prediction: "",
-    odds_reference: "", value_rating: 3, confidence_percentage: 65,
-    public_bias: "medium", reasoning_text: "", analyst_note: "",
-    match_date: "", is_premium: true,
-  });
-  const [saving, setSaving] = useState(false);
-  const set = (k, v) => setForm(f => ({...f, [k]: v}));
+const generateWithAI = async () => {
+    if (!form.home_team || !form.away_team || !form.league) {
+      notify("Enter Home Team, Away Team and League first", "error"); return;
+    }
+    setSaving(true);
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+"Authorization": `Bearer ${import.meta.env.VITE_OPENAI_KEY}`        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          max_tokens: 500,
+          messages: [{
+            role: "user",
+            content: `You are a sports betting analyst. Analyze this match and return ONLY a JSON object, no other text.
+
+Match: ${form.home_team} vs ${form.away_team}
+League: ${form.league}
+Sport: ${form.sport}
+
+Return this exact JSON:
+{
+  "prediction": "e.g. ${form.home_team} Win",
+  "market_type": "1X2 or Over/Under or BTTS or DNB",
+  "odds_suggestion": 1.85,
+  "confidence": 72,
+  "public_bias": "low or medium or high",
+  "value_rating": 3,
+  "reasoning": "2-3 sentence analysis explaining why"
+}`
+          }]
+        })
+      });
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content;
+      const clean = text.replace(/```json|```/g, "").trim();
+      const ai = JSON.parse(clean);
+      set("prediction", ai.prediction || "");
+      set("market_type", ai.market_type || "1X2");
+      set("odds_reference", ai.odds_suggestion || "");
+      set("confidence_percentage", ai.confidence || 65);
+      set("public_bias", ai.public_bias || "medium");
+      set("value_rating", ai.value_rating || 3);
+      set("reasoning_text", ai.reasoning || "");
+      notify("AI prediction generated ✓");
+    } catch (err) {
+      notify("AI error: " + err.message, "error");
+    }
+    setSaving(false);
+  };
 
   const handleSave = async () => {
     if (!form.home_team) { notify("Home team is required", "error"); return; }
@@ -1545,7 +1588,11 @@ function CreateTipModal({ onClose, onSave, notify, userId }) {
             <span className="toggle-slider" />
           </label>
         </div>
-        <div style={{display:"flex",gap:12,marginTop:24}}>
+
+        <button className="btn-secondary" style={{width:"100%",marginBottom:12,borderColor:"var(--accent2)",color:"var(--accent2)"}} onClick={generateWithAI} disabled={saving}>
+  🤖 Generate with AI
+</button>
+<div style={{display:"flex",gap:12,marginTop:0}}>
           <button className="btn-secondary" onClick={onClose} style={{flex:1,textAlign:"center"}}>Cancel</button>
           <button className="btn-primary" onClick={handleSave} style={{flex:2,justifyContent:"center"}} disabled={saving}>
             {saving ? "Saving..." : "💾 Save Tip"}
@@ -2003,7 +2050,7 @@ export default function BetSenseApp() {
           {page === "dashboard" && (
             <DashboardPage user={user} tips={tips} stats={stats} onSubscribeClick={() => setPage("subscription")} />
           )}
-          {page === "subscription" && <SubscriptionPage user={user} />}
+          {page === "subscription" && <SubscriptionPage user={user} onBack={() => setPage("dashboard")} />}
 {page === "history" && <HistoryPage tips={tips} />}
           {page === "admin" && isAdmin && (
             <AdminPage tips={tips} setTips={setTips} notify={notify} userId={user.id} allUsers={allUsers} />
