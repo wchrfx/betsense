@@ -1329,7 +1329,7 @@ function SubscriptionPage({ user, onBack }) {
     <h1 className="page-title">Upgrade to Premium</h1>
     <p className="page-subtitle">Unlock all tips, full analysis & performance tracking</p>
   </div>
-  <button className="btn-secondary" onClick={onBack} style={{fontSize:13,padding:"8px 16px"}}>
+  <button className="btn-secondary" onClick={() => setPage("dashboard")} style={{fontSize:13,padding:"8px 16px"}}>
     ← Back
   </button>
 </div>
@@ -1393,20 +1393,10 @@ function SubscriptionPage({ user, onBack }) {
 // ─────────────────────────────────────────────────────────────
 function CreateTipModal({ onClose, onSave, notify, userId }) {
   const [form, setForm] = useState({
-    sport: "football",
-    market_type: "1X2",
-    home_team: "",
-    away_team: "",
-    league: "",
-    match_date: "",
-    prediction: "",
-    odds_reference: "",
-    confidence_percentage: 65,
-    value_rating: 3,
-    public_bias: "medium",
-    reasoning_text: "",
-    analyst_note: "",
-    is_premium: false,
+    sport: "football", market_type: "1X2", home_team: "", away_team: "",
+    league: "", match_date: "", prediction: "", odds_reference: "",
+    confidence_percentage: 65, value_rating: 3, public_bias: "medium",
+    reasoning_text: "", analyst_note: "", is_premium: false,
   });
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm(f => ({...f, [k]: v}));
@@ -1618,6 +1608,198 @@ Return this exact JSON:
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BetBuilderPage({ tips, user, notify }) {
+  const [selected, setSelected] = useState([]);
+  const [stake, setStake] = useState("");
+  const [sport, setSport] = useState("all");
+  const [saving, setSaving] = useState(false);
+  const [savedSlips, setSavedSlips] = useState([]);
+  const [tab, setTab] = useState("build");
+  const isPremium = user?.subscription_status !== "free";
+
+  const available = tips.filter(t =>
+    t.result_status === "pending" &&
+    (sport === "all" || t.sport === sport) &&
+    (isPremium || !t.is_premium)
+  );
+
+  useEffect(() => {
+    supabase.from('bet_slips')
+      .select('*').eq('user_id', user.id)
+      .order('created_at', { ascending: false }).limit(10)
+      .then(({ data }) => { if (data) setSavedSlips(data); });
+  }, [user.id]);
+
+  const toggleTip = (tip) => {
+    setSelected(prev =>
+      prev.find(t => t.id === tip.id)
+        ? prev.filter(t => t.id !== tip.id)
+        : prev.length >= 10
+          ? (notify("Max 10 picks per slip", "error"), prev)
+          : [...prev, tip]
+    );
+  };
+
+  const combinedOdds = selected.reduce((acc, t) => acc * Number(t.odds_reference), 1);
+  const potentialReturn = stake ? (parseFloat(stake) * combinedOdds).toFixed(0) : 0;
+  const profit = stake ? (potentialReturn - parseFloat(stake)).toFixed(0) : 0;
+
+  const saveSlip = async () => {
+    if (selected.length < 2) { notify("Select at least 2 tips", "error"); return; }
+    if (!stake || parseFloat(stake) <= 0) { notify("Enter a valid stake", "error"); return; }
+    setSaving(true);
+    const { error } = await supabase.from('bet_slips').insert({
+      user_id: user.id,
+      tip_ids: selected.map(t => t.id),
+      combined_odds: combinedOdds,
+      stake: parseFloat(stake),
+      potential_return: parseFloat(potentialReturn),
+    });
+    setSaving(false);
+    if (error) { notify("Error saving slip", "error"); return; }
+    notify("Bet slip saved ✓");
+    setSavedSlips(prev => [{ tip_ids: selected.map(t=>t.id), combined_odds: combinedOdds, stake: parseFloat(stake), potential_return: parseFloat(potentialReturn), created_at: new Date().toISOString() }, ...prev]);
+  };
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">🎯 Bet Builder</h1>
+          <p className="page-subtitle">Combine picks, calculate returns, build your slip</p>
+        </div>
+      </div>
+      <div className="filter-bar">
+        {["build","slips"].map(t => (
+          <button key={t} className={`filter-btn ${tab===t?"active":""}`} onClick={()=>setTab(t)}>
+            {t==="build" ? "🎯 Build Slip" : "📋 My Slips"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "build" && (
+        <div style={{display:"grid", gridTemplateColumns:"1fr 320px", gap:20, alignItems:"start"}}>
+          <div>
+            <div className="filter-bar">
+              {["all","football","basketball"].map(s => (
+                <button key={s} className={`filter-btn ${sport===s?"active":""}`} onClick={()=>setSport(s)}>
+                  {s==="all"?"All":s==="football"?"⚽ Football":"🏀 Basketball"}
+                </button>
+              ))}
+            </div>
+            {available.length === 0 ? (
+              <div className="empty-state"><div className="empty-icon">📭</div><div className="empty-title">No pending tips</div><div className="empty-sub">Tips will appear here when posted</div></div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {available.map(tip => {
+                  const isSelected = !!selected.find(t => t.id === tip.id);
+                  return (
+                    <div key={tip.id} onClick={()=>toggleTip(tip)} style={{background:isSelected?"rgba(0,229,160,0.08)":"var(--card)",border:`1px solid ${isSelected?"rgba(0,229,160,0.5)":"var(--border)"}`,borderRadius:12,padding:"14px 18px",cursor:"pointer",transition:"all 0.15s",display:"flex",alignItems:"center",gap:14}}>
+                      <div style={{width:22,height:22,borderRadius:6,flexShrink:0,border:`2px solid ${isSelected?"var(--accent)":"var(--border2)"}`,background:isSelected?"var(--accent)":"transparent",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#000",fontWeight:800}}>
+                        {isSelected?"✓":""}
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:600,fontSize:14,color:"var(--text)",marginBottom:3}}>{tip.match_title}</div>
+                        <div style={{fontSize:12,color:"var(--muted)"}}>{tip.sport==="football"?"⚽":"🏀"} {tip.league} · {tip.market_type}</div>
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontFamily:"Syne,sans-serif",fontSize:14,fontWeight:800,color:"var(--accent)"}}>{tip.prediction}</div>
+                        <div style={{fontFamily:"Syne,sans-serif",fontSize:14,fontWeight:700,color:"var(--gold)"}}>{Number(tip.odds_reference).toFixed(2)}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:16,padding:20,position:"sticky",top:20}}>
+            <div style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:16,marginBottom:16}}>📋 Your Slip</div>
+            {selected.length === 0 ? (
+              <div style={{textAlign:"center",padding:"24px 0",color:"var(--muted)",fontSize:13}}>Select tips from the left to build your slip</div>
+            ) : (
+              <>
+                <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+                  {selected.map(tip => (
+                    <div key={tip.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"var(--surface)",borderRadius:10,border:"1px solid var(--border)"}}>
+                      <div style={{minWidth:0,flex:1}}>
+                        <div style={{fontSize:12,fontWeight:600,color:"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tip.match_title}</div>
+                        <div style={{fontSize:11,color:"var(--accent)",marginTop:2}}>{tip.prediction}</div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                        <span style={{fontFamily:"Syne,sans-serif",fontWeight:700,color:"var(--gold)",fontSize:13}}>{Number(tip.odds_reference).toFixed(2)}</span>
+                        <button onClick={e=>{e.stopPropagation();toggleTip(tip);}} style={{background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:14}}>✕</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{borderTop:"1px solid var(--border)",paddingTop:16,marginBottom:16}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                    <span style={{fontSize:13,color:"var(--muted)"}}>Picks</span>
+                    <span style={{fontWeight:700,fontSize:13}}>{selected.length}</span>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between"}}>
+                    <span style={{fontSize:13,color:"var(--muted)"}}>Combined Odds</span>
+                    <span style={{fontFamily:"Syne,sans-serif",fontWeight:800,fontSize:16,color:"var(--gold)"}}>{combinedOdds.toFixed(2)}</span>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Stake (UGX)</label>
+                  <input className="form-input" type="number" placeholder="e.g. 5000" value={stake} onChange={e=>setStake(e.target.value)} />
+                </div>
+                {stake && parseFloat(stake) > 0 && (
+                  <div style={{background:"rgba(0,229,160,0.06)",border:"1px solid rgba(0,229,160,0.2)",borderRadius:12,padding:16,marginBottom:16}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                      <span style={{fontSize:13,color:"var(--muted)"}}>Stake</span>
+                      <span style={{fontWeight:600,fontSize:13}}>UGX {Number(stake).toLocaleString()}</span>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                      <span style={{fontSize:13,color:"var(--muted)"}}>Profit</span>
+                      <span style={{fontWeight:700,color:"var(--accent)",fontSize:13}}>+UGX {Number(profit).toLocaleString()}</span>
+                    </div>
+                    <div style={{borderTop:"1px solid rgba(0,229,160,0.2)",paddingTop:10,display:"flex",justifyContent:"space-between"}}>
+                      <span style={{fontSize:14,fontWeight:700}}>Total Return</span>
+                      <span style={{fontFamily:"Syne,sans-serif",fontWeight:900,fontSize:18,color:"var(--accent)"}}>UGX {Number(potentialReturn).toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
+                <div style={{display:"flex",gap:10}}>
+                  <button className="btn-secondary" style={{flex:1,textAlign:"center",fontSize:13}} onClick={()=>{setSelected([]);setStake("");}}>Clear</button>
+                  <button className="btn-primary" style={{flex:2,justifyContent:"center",fontSize:13}} onClick={saveSlip} disabled={saving}>{saving?"Saving...":"💾 Save Slip"}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "slips" && (
+        <div>
+          {savedSlips.length === 0 ? (
+            <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-title">No saved slips</div><div className="empty-sub">Build and save your first slip above</div></div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {savedSlips.map((slip,i) => (
+                <div key={i} style={{background:"var(--card)",border:"1px solid var(--border)",borderRadius:14,padding:20,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
+                  <div>
+                    <div style={{fontSize:13,color:"var(--muted)",marginBottom:4}}>{new Date(slip.created_at).toLocaleDateString("en-UG",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+                    <div style={{fontSize:13,color:"var(--text)"}}>{slip.tip_ids?.length} picks · <span style={{color:"var(--gold)",fontWeight:700}}>Odds: {Number(slip.combined_odds).toFixed(2)}</span></div>
+                    <div style={{fontSize:13,color:"var(--muted)"}}>Stake: UGX {Number(slip.stake).toLocaleString()}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:11,color:"var(--muted)",marginBottom:4}}>Potential Return</div>
+                    <div style={{fontFamily:"Syne,sans-serif",fontWeight:900,fontSize:22,color:"var(--accent)"}}>UGX {Number(slip.potential_return).toLocaleString()}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -2028,8 +2210,9 @@ export default function BetSenseApp() {
 
   const navItems = [
     { id:"dashboard", icon:"📊", label:"Dashboard" },
+    { id:"history", icon:"📋", label:"Results" },
+    { id:"betbuilder", icon:"🎯", label:"Bet Builder" },
     { id:"subscription", icon:"⭐", label:"Subscription" },
-{ id:"history", icon:"📋", label:"Results" },
     ...(isAdmin ? [{ id:"admin", icon:"🛡️", label:"Admin Panel" }] : []),
   ];
 
@@ -2070,7 +2253,8 @@ export default function BetSenseApp() {
             <DashboardPage user={user} tips={tips} stats={stats} onSubscribeClick={() => setPage("subscription")} />
           )}
           {page === "subscription" && <SubscriptionPage user={user} onBack={() => setPage("dashboard")} />}
-{page === "history" && <HistoryPage tips={tips} />}
+          {page === "history" && <HistoryPage tips={tips} />}
+          {page === "betbuilder" && <BetBuilderPage tips={tips} user={user} notify={notify} />}
           {page === "admin" && isAdmin && (
             <AdminPage tips={tips} setTips={setTips} notify={notify} userId={user.id} allUsers={allUsers} />
           )}
@@ -2081,6 +2265,7 @@ export default function BetSenseApp() {
            {[
               { id:"dashboard", icon:"📊", label:"Picks" },
               { id:"history", icon:"📋", label:"Results" },
+              { id:"betbuilder", icon:"🎯", label:"Builder" },
               { id:"subscription", icon:"⭐", label:"Premium" },
               ...(isAdmin ? [{ id:"admin", icon:"🛡️", label:"Admin" }] : [{ id:"account", icon:"👤", label:"Account" }]),
             ].map(item => (
